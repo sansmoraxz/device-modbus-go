@@ -28,20 +28,23 @@ type Driver struct {
 	addressMap          map[string]chan bool
 	workingAddressCount map[string]int
 	stopped             bool
-	clientMutex         sync.Mutex
+	clientMutex         sync.RWMutex
 	clientMap           map[string]DeviceClient
 }
 
 var concurrentCommandLimit = 100
 
 func (d *Driver) createDeviceClient(info *ConnectionInfo) (DeviceClient, error) {
-	d.clientMutex.Lock()
-	defer d.clientMutex.Unlock()
 	key := info.String()
+	d.clientMutex.RLock()
 	c, ok := d.clientMap[key]
+	d.clientMutex.RUnlock()
 	if ok {
 		return c, nil
 	}
+
+	d.clientMutex.Lock()
+	defer d.clientMutex.Unlock()
 	c, err := NewDeviceClient(info)
 	if err != nil {
 		driver.Logger.Errorf("create device client failed. err:%v \n", err)
